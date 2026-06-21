@@ -13,6 +13,8 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public final class UpdateClient {
+    private static final String UPDATE_MANIFEST_URL =
+            "https://raw.githubusercontent.com/Noknowledgeatall/p1-test-update/main/updates/update.json";
     private static final String LATEST_RELEASE_URL =
             "https://api.github.com/repos/Noknowledgeatall/p1-test-update/releases/latest";
     private static final String RELEASES_PAGE_URL =
@@ -21,13 +23,39 @@ public final class UpdateClient {
     private static final int READ_TIMEOUT_MS = 5000;
 
     public UpdateInfo checkLatest() throws IOException, JSONException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(LATEST_RELEASE_URL).openConnection();
-        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        connection.setReadTimeout(READ_TIMEOUT_MS);
-        connection.setRequestMethod("GET");
-        connection.setRequestProperty("Accept", "application/vnd.github+json");
-        connection.setRequestProperty("User-Agent", "EnergyOptimizerAndroid/" + BuildConfig.VERSION_NAME);
+        try {
+            UpdateInfo manifestUpdate = checkManifest();
+            if (manifestUpdate.downloadUrl != null && !manifestUpdate.downloadUrl.isEmpty()) {
+                return manifestUpdate;
+            }
+        } catch (IOException ignored) {
+            // GitHub Releases blijft beschikbaar als fallback.
+        }
+        return checkGitHubRelease();
+    }
 
+    private UpdateInfo checkManifest() throws IOException, JSONException {
+        HttpURLConnection connection = openJsonConnection(UPDATE_MANIFEST_URL);
+        int code = connection.getResponseCode();
+        if (code != HttpURLConnection.HTTP_OK) {
+            throw new IOException("Update manifest gaf HTTP " + code);
+        }
+
+        JSONObject json = new JSONObject(readBody(connection.getInputStream()));
+        String tag = json.optString("tag_name", "");
+        String apkUrl = json.optString("apk_url", "");
+        if (apkUrl.isEmpty()) {
+            throw new JSONException("apk_url ontbreekt in update manifest");
+        }
+        boolean newer = isNewerTag(tag, BuildConfig.VERSION_NAME);
+        String message = newer
+                ? "Update beschikbaar: " + tag
+                : "Updatebestand gevonden: " + tag;
+        return new UpdateInfo(newer, tag, apkUrl, message);
+    }
+
+    private UpdateInfo checkGitHubRelease() throws IOException, JSONException {
+        HttpURLConnection connection = openJsonConnection(LATEST_RELEASE_URL);
         int code = connection.getResponseCode();
         if (code == HttpURLConnection.HTTP_NOT_FOUND) {
             return new UpdateInfo(false, "", RELEASES_PAGE_URL,
@@ -51,6 +79,16 @@ public final class UpdateClient {
                 ? "Update beschikbaar: " + tag
                 : "Laatste release gevonden: " + tag;
         return new UpdateInfo(newer, tag, apkUrl, message);
+    }
+
+    private static HttpURLConnection openJsonConnection(String url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setRequestMethod("GET");
+        connection.setRequestProperty("Accept", "application/json, application/vnd.github+json");
+        connection.setRequestProperty("User-Agent", "EnergyOptimizerAndroid/" + BuildConfig.VERSION_NAME);
+        return connection;
     }
 
     private static String findApkAssetUrl(JSONArray assets) throws JSONException {

@@ -1,6 +1,10 @@
 # Updates publiceren
 
-De app controleert updates via GitHub Releases van:
+De app controleert updates eerst via:
+
+`https://raw.githubusercontent.com/Noknowledgeatall/p1-test-update/main/updates/update.json`
+
+Daarna gebruikt hij GitHub Releases als fallback:
 
 `https://github.com/Noknowledgeatall/p1-test-update`
 
@@ -20,7 +24,8 @@ Werkwijze:
 
 4. In de app: tik op `Controleer update`.
 
-De app zoekt in de nieuwste GitHub Release naar de eerste asset waarvan de naam eindigt op `.apk`.
+De makkelijkste route is `updates/update.json` plus `updates/energy-optimizer-latest.apk`.
+Bij GitHub Releases zoekt de app in de nieuwste release naar de eerste asset waarvan de naam eindigt op `.apk`.
 De updateknop downloadt die APK automatisch via Android DownloadManager en opent daarna de Android-installer.
 
 Met een GitHub token met `contents:write` kan dit ook vanaf de laptop:
