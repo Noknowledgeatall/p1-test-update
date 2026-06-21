@@ -1,0 +1,20 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "nl.local.energyoptimizer"
+    compileSdk 36
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    defaultConfig {
+        applicationId "nl.local.energyoptimizer"
+        minSdk 26
+        targetSdk 36
+        versionCode 3
+        versionName "0.1.2-phase1"
+    }
+}
